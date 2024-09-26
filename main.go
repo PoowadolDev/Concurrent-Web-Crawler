@@ -12,6 +12,13 @@ func main() {
 		fmt.Println("Error fetching pages:", err)
 	}
 
-	fmt.Println("Page Contents")
-	fmt.Println(content)
+	links, err := parseLinks(content)
+	if err != nil {
+		fmt.Println("Error parsing pages:", err)
+	}
+
+	fmt.Println("Found links:")
+	for _, link := range links {
+		fmt.Println(link)
+	}
 }
