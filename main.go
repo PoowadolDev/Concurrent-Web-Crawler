@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -11,8 +11,10 @@ type VisitedURLs struct {
 	mux  sync.Mutex
 }
 
+var rateLimiter = time.Tick(500 * time.Millisecond)
+
 func main() {
-	fmt.Println("Starting Concurrent Web Crawler")
+	log.Println("Starting Concurrent Web Crawler")
 	startURL := "https://www.w3schools.com/"
 	urls := make(chan string)
 	visited := &VisitedURLs{urls: make(map[string]bool)}
@@ -26,10 +28,10 @@ func main() {
 
 	urls <- startURL
 
-	go func() {
-		time.Sleep(10 * time.Second)
-		close(urls)
-	}()
+	// go func() {
+	// 	time.Sleep(20 * time.Second)
+	// 	close(urls)
+	// }()
 
 	wg.Wait()
 }
@@ -48,22 +50,28 @@ func (v *VisitedURLs) Add(url string) {
 
 func worker(id int, wg *sync.WaitGroup, urls chan string, visited *VisitedURLs) {
 	defer wg.Done()
+	<-rateLimiter
 	for url := range urls {
 		if visited.IsVisited(url) {
 			continue
 		}
 
 		visited.Add(url)
-		fmt.Printf("Worker %d fetching URL: %s\n", id, url)
+		log.Printf("Worker %d fetching URL: %s\n", id, url)
+
+		if !canFetch(url) {
+			continue
+		}
+
 		content, err := fetch(url)
 		if err != nil {
-			fmt.Println("Error fetching page:", err)
+			log.Println("Error fetching page:", err)
 			continue
 		}
 
 		links, err := parseLinks(content)
 		if err != nil {
-			fmt.Println("Error parsing page:", err)
+			log.Println("Error parsing page:", err)
 			continue
 		}
 		for _, link := range links {
